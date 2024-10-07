@@ -1,3 +1,144 @@
+# CHANGELOG
+
+### 0.24.0 <small>Oct 4, 2024</small>
+
+- Added [F1 score](https://supervision.roboflow.com/0.24.0/metrics/f1_score/#supervision.metrics.f1_score.F1Score) as a new metric for detection and segmentation. [#1521](https://github.com/roboflow/supervision/pull/1521)
+
+```python
+import supervision as sv
+from supervision.metrics import F1Score
+
+predictions = sv.Detections(...)
+targets = sv.Detections(...)
+
+f1_metric = F1Score()
+f1_result = f1_metric.update(predictions, targets).compute()
+
+print(f1_result)
+print(f1_result.f1_50)
+print(f1_result.small_objects.f1_50)
+```
+
+- Added new cookbook: [Small Object Detection with SAHI](https://supervision.roboflow.com/0.24.0/notebooks/small-object-detection-with-sahi/). This cookbook provides a detailed guide on using [`InferenceSlicer`](https://supervision.roboflow.com/0.24.0/detection/tools/inference_slicer/) for small object detection. [#1483](https://github.com/roboflow/supervision/pull/1483)
+
+- Added an [Embedded Workflow](https://roboflow.com/workflows), which allows you to [preview annotators](https://supervision.roboflow.com/0.24.0/detection/annotators/). [#1533](https://github.com/roboflow/supervision/pull/1533)
+
+- Enhanced [`LineZoneAnnotator`](https://supervision.roboflow.com/0.24.0/detection/tools/line_zone/#supervision.detection.line_zone.LineZoneAnnotator), allowing the labels to align with the line, even when it's not horizontal. Also, you can now disable text background, and choose to draw labels off-center which minimizes overlaps for multiple [`LineZone`](https://supervision.roboflow.com/0.24.0/detection/tools/line_zone/#supervision.detection.line_zone.LineZone) labels. [#854](https://github.com/roboflow/supervision/pull/854)
+
+```python
+import supervision as sv
+import cv2
+
+image = cv2.imread("<SOURCE_IMAGE_PATH>")
+
+line_zone = sv.LineZone(
+    start=sv.Point(0, 100),
+    end=sv.Point(50, 200)
+)
+line_zone_annotator = sv.LineZoneAnnotator(
+    text_orient_to_line=True,
+    display_text_box=False,
+    text_centered=False
+)
+
+annotated_frame = line_zone_annotator.annotate(
+    frame=image.copy(), line_counter=line_zone
+)
+
+sv.plot_image(frame)
+```
+
+- Added per-class counting capabilities to [`LineZone`](https://supervision.roboflow.com/0.24.0/detection/tools/line_zone/#supervision.detection.line_zone.LineZone) and introduced [`LineZoneAnnotatorMulticlass`](https://supervision.roboflow.com/0.24.0/detection/tools/line_zone/#supervision.detection.line_zone.LineZoneAnnotatorMulticlass) for visualizing the counts per class. This feature allows tracking of individual classes crossing a line, enhancing the flexibility of use cases like traffic monitoring or crowd analysis. [#1555](https://github.com/roboflow/supervision/pull/1555)
+
+```python
+import supervision as sv
+import cv2
+
+image = cv2.imread("<SOURCE_IMAGE_PATH>")
+
+line_zone = sv.LineZone(
+    start=sv.Point(0, 100),
+    end=sv.Point(50, 200)
+)
+line_zone_annotator = sv.LineZoneAnnotatorMulticlass()
+
+frame = line_zone_annotator.annotate(
+    frame=frame, line_zones=[line_zone]
+)
+
+sv.plot_image(frame)
+```
+
+- Added [`from_easyocr`](https://supervision.roboflow.com/0.24.0/detection/core/#supervision.detection.core.Detections.from_easyocr), allowing integration of OCR results into the supervision framework. [EasyOCR](https://github.com/JaidedAI/EasyOCR) is an open-source optical character recognition (OCR) library that can read text from images. [#1515](https://github.com/roboflow/supervision/pull/1515)
+
+```python
+import supervision as sv
+import easyocr
+import cv2
+
+image = cv2.imread("<SOURCE_IMAGE_PATH>")
+
+reader = easyocr.Reader(["en"])
+result = reader.readtext("<SOURCE_IMAGE_PATH>", paragraph=True)
+detections = sv.Detections.from_easyocr(result)
+
+box_annotator = sv.BoxAnnotator(color_lookup=sv.ColorLookup.INDEX)
+label_annotator = sv.LabelAnnotator(color_lookup=sv.ColorLookup.INDEX)
+
+annotated_image = image.copy()
+annotated_image = box_annotator.annotate(scene=annotated_image, detections=detections)
+annotated_image = label_annotator.annotate(scene=annotated_image, detections=detections)
+
+sv.plot_image(annotated_image)
+```
+
+- Added [`oriented_box_iou_batch`](https://supervision.roboflow.com/0.24.0/detection/utils/#supervision.detection.utils.oriented_box_iou_batch) function to `detection.utils`. This function computes Intersection over Union (IoU) for oriented or rotated bounding boxes (OBB). [#1502](https://github.com/roboflow/supervision/pull/1502)
+
+```python
+import numpy as np
+
+boxes_true = np.array([[[1, 0], [0, 1], [3, 4], [4, 3]]])
+boxes_detection = np.array([[[1, 1], [2, 0], [4, 2], [3, 3]]])
+ious = sv.oriented_box_iou_batch(boxes_true, boxes_detection)
+print("IoU between true and detected boxes:", ious)
+```
+
+- Extended [`PolygonZoneAnnotator`](https://supervision.roboflow.com/0.24.0/detection/tools/polygon_zone/#supervision.detection.tools.polygon_zone.PolygonZoneAnnotator) to allow setting opacity when drawing zones, providing enhanced visualization by filling the zone with adjustable transparency. [#1527](https://github.com/roboflow/supervision/pull/1527)
+
+```python
+import cv2
+from ncnn.model_zoo import get_model
+import supervision as sv
+
+image = cv2.imread("<SOURCE_IMAGE_PATH>")
+model = get_model(
+    "yolov8s",
+    target_size=640,
+    prob_threshold=0.5,
+    nms_threshold=0.45,
+    num_threads=4,
+    use_gpu=True,
+)
+result = model(image)
+detections = sv.Detections.from_ncnn(result)
+```
+
+!!! failure "Removed"
+
+    The `frame_resolution_wh` parameter in [`PolygonZone`](https://supervision.roboflow.com/0.24.0/detection/tools/polygon_zone/#supervision.detection.tools.polygon_zone.PolygonZone) has been removed.
+
+!!! failure "Removed"
+
+    Supervision installation methods `"headless"` and `"desktop"` were removed, as they are no longer needed. `pip install supervision[headless]` will install the base library and harmlessly warn of non-existent extras.
+
+- Supervision now depends on `opencv-python` rather than `opencv-python-headless`. [#1530](https://github.com/roboflow/supervision/pull/1530)
+
+- Fixed the COCO 101 point Average Precision algorithm to correctly interpolate precision, providing a more precise calculation of average precision without averaging out intermediate values. [#1500](https://github.com/roboflow/supervision/pull/1500)
+
+- Resolved miscellaneous issues highlighted when building documentation. This mostly includes whitespace adjustments and type inconsistencies. Updated documentation for clarity and fixed formatting issues. Added explicit version for `mkdocstrings-python`. [#1549](https://github.com/roboflow/supervision/pull/1549)
+
+- Enabled and fixed Ruff rules for code formatting, including changes like avoiding unnecessary iterable allocations and using Optional for default mutable arguments. [#1526](https://github.com/roboflow/supervision/pull/1526)
+
 ### 0.23.0 <small>Aug 28, 2024</small>
 
 - Added [#930](https://github.com/roboflow/supervision/pull/930): `IconAnnotator`, a [new annotator](https://supervision.roboflow.com/0.23.0/detection/annotators/#supervision.annotators.core.IconAnnotator) that allows drawing icons on each detection. Useful if you want to draw a specific icon for each class.
@@ -84,7 +225,6 @@ from segment_anything import (
     sam_model_registry,
     SamAutomaticMaskGenerator
 )
-
 sam_model_reg = sam_model_registry[MODEL_TYPE]
 sam = sam_model_reg(checkpoint=CHECKPOINT_PATH).to(device=DEVICE)
 mask_generator = SamAutomaticMaskGenerator(sam)
@@ -96,7 +236,7 @@ detections = sv.Detections.from_sam(sam_result=sam_result)
 
 - Added [#1409](https://github.com/roboflow/supervision/pull/1409): `text_color` option for [`VertexLabelAnnotator`](https://supervision.roboflow.com/0.23.0/keypoint/annotators/#supervision.keypoint.annotators.VertexLabelAnnotator) keypoint annotator.
 
-- Changed [#1434](https://github.com/roboflow/supervision/pull/1434): [`InferenceSlicer`](https://supervision.roboflow.com/0.23.0/detection/tools/inference_slicer/) now features an `overlap_ratio_wh` parameter, making it easier to compute slice sizes when handling overlapping slices.
+- Changed [#1434](https://github.com/roboflow/supervision/pull/1434): [`InferenceSlicer`](https://supervision.roboflow.com/0.23.0/detection/tools/inference_slicer/) now features an `overlap_wh` parameter, making it easier to compute slice sizes when handling overlapping slices.
 
 - Fix [#1448](https://github.com/roboflow/supervision/pull/1448): Various annotator type issues have been resolved, supporting expanded error handling.
 
@@ -121,7 +261,7 @@ for frame in sv.get_video_frames_generator(
 
 !!! failure "Removed"
 
-    The `triggering_position ` parameter in [`sv.PolygonZone`](detection/tools/polygon_zone.md/#supervision.detection.tools.polygon_zone.PolygonZone) was removed as of `supervision-0.23.0`. Use `triggering_anchors ` instead.
+    The `triggering_position` parameter in [`sv.PolygonZone`](detection/tools/polygon_zone.md/#supervision.detection.tools.polygon_zone.PolygonZone) was removed as of `supervision-0.23.0`. Use `triggering_anchors` instead.
 
 !!! failure "Deprecated"
 
@@ -223,7 +363,7 @@ train_ds = sv.DetectionDataset.from_yolo(
     images_directory_path="/content/dataset/train/images",
     annotations_directory_path="/content/dataset/train/labels",
     data_yaml_path="/content/dataset/data.yaml",
-    is_obb=True
+    is_obb=True,
 )
 
 _, image, detections in train_ds[0]
@@ -294,7 +434,7 @@ detections = sv.Detections.from_lmm(
     sv.LMM.PALIGEMMA,
     paligemma_result,
     resolution_wh=(1000, 1000),
-    classes=['cat', 'dog']
+    classes=["cat", "dog"],
 )
 detections.xyxy
 # array([[250., 250., 750., 750.]])
